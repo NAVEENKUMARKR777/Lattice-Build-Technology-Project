@@ -1,0 +1,6 @@
+Build a project using RAG and fine-tune the LLM model.
+Important: run a model locally, please don’t rely on any hosted API (e.g. OpenAI’s ChatGPT API). load and infer the model locally. develop a quick prototype
+
+use Phi-3 model
+
+download latest quantum physics papers as documents to train and fine tune the model
