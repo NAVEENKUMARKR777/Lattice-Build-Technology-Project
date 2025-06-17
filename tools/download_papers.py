@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 def fetch_latest_quantum_papers(num_papers: int = 50):
     """Return a list of dicts containing title & abstract of latest `quant-ph` papers."""
+    # arxiv API can return an empty page for very high indices; we'll fetch lazily and stop if that happens
     search = arxiv.Search(
         query="cat:quant-ph",
         max_results=num_papers,
@@ -16,17 +17,27 @@ def fetch_latest_quantum_papers(num_papers: int = 50):
         sort_order=arxiv.SortOrder.Descending,
     )
 
-    papers = []
-    for result in tqdm(list(search.results()), desc="Downloading metadata"):
-        papers.append(
-            {
-                "id": result.get_short_id(),
-                "title": result.title.strip().replace("\n", " "),
-                "summary": result.summary.strip().replace("\n", " "),
-                "published": result.published.isoformat(),
-                "url": result.entry_id,
-            }
-        )
+    papers: list[dict] = []
+
+    try:
+        for result in tqdm(search.results(), desc="Downloading metadata"):
+            papers.append(
+                {
+                    "id": result.get_short_id(),
+                    "title": result.title.strip().replace("\n", " "),
+                    "summary": result.summary.strip().replace("\n", " "),
+                    "published": result.published.isoformat(),
+                    "url": result.entry_id,
+                }
+            )
+
+            if len(papers) >= num_papers:
+                break  # safeguard in case API yields more entries than requested
+
+    except arxiv.UnexpectedEmptyPageError:
+        # This happens when the start index exceeds available results.
+        print("[!] Reached end of available results early – returning", len(papers), "papers.")
+
     return papers
 
 

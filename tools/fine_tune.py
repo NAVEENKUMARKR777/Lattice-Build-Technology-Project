@@ -73,12 +73,19 @@ def main():
 
     print("[+] Loading base model…")
 
-    # For Windows (no GPU bitsandbytes) load full model in FP16 directly onto GPU.
-    print("[+] Moving model to GPU (FP16)…")
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_name,
-        torch_dtype=torch.float16,
-    ).to("cuda")
+    # Select device
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    if device == "cuda":
+        print("[+] Moving model to GPU (FP16)…")
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model_name,
+            torch_dtype=torch.float16,
+        ).to(device)
+    else:
+        print("[!] CUDA not available – loading model on CPU (this will be slow).")
+        # When running on CPU we stick to the model's default dtype to avoid precision issues
+        model = AutoModelForCausalLM.from_pretrained(args.model_name).to(device)
 
     model.gradient_checkpointing_enable()
     model.config.use_cache = False  # required when using gradient checkpointing
@@ -108,13 +115,17 @@ def main():
 
     data_collator = DataCollatorForLanguageModeling(tokenizer, mlm=False)
 
+    # Mixed-precision only if GPU is present. On CPU we use full precision.
+    use_gpu = torch.cuda.is_available()
+    supports_bf16 = use_gpu and torch.cuda.is_bf16_supported()
+
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         per_device_train_batch_size=args.batch,
         num_train_epochs=args.num_train_epochs,
         learning_rate=args.lr,
-        bf16=torch.cuda.is_available(),
-        fp16=not torch.cuda.is_available(),
+        bf16=supports_bf16,
+        fp16=use_gpu and not supports_bf16,  # ensure only one of fp16/bf16 is True
         gradient_accumulation_steps=max(4, math.ceil(16 / args.batch)),  # ensure effective batch 16
         logging_steps=25,
         save_strategy="epoch",

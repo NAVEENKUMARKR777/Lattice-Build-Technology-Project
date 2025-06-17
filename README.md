@@ -24,6 +24,7 @@ pip install -r requirements.txt
 python tools/download_papers.py -n 500 -o data/papers
 
 # 4. Fine-tune Phi-3 with LoRA (adjust hyper-parameters in `scripts/fine_tune.py`)
+pip install --upgrade --index-url https://download.pytorch.org/whl/cu121 torch torchvision torchaudio
 python tools/fine_tune.py --data_dir data/papers --output_dir models/phi3_quant --batch 1
 
 # 5. Build the FAISS vector store for RAG

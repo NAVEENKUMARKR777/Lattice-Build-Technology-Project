@@ -52,10 +52,15 @@ class RAGEngine:
                 print("[!] 4-bit load failed, fallback to 16-bit. Reason:", e)
 
         if base_model is None:
-            base_model = AutoModelForCausalLM.from_pretrained(
-                DEFAULT_BASE_MODEL,
-                torch_dtype=torch.float16,
-            ).to("cuda")
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            if device == "cuda":
+                base_model = AutoModelForCausalLM.from_pretrained(
+                    DEFAULT_BASE_MODEL,
+                    torch_dtype=torch.float16,
+                ).to(device)
+            else:
+                print("[!] CUDA not available – loading model on CPU (this will be slow).")
+                base_model = AutoModelForCausalLM.from_pretrained(DEFAULT_BASE_MODEL).to(device)
 
         base_model.config.use_cache = False  # for consistency with gradient-ckpt models
 
